@@ -3,6 +3,12 @@
 ## Use SigV4AuthProvider for authentication provider to AWS Keyspaces
 
 ```java
+...
+import software.amazon.awssdk.auth.credentials.AwsCredentials
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+...
+
 @Configuration
 @EnableCassandraRepositories(basePackages = {"..."})
 public class CassandraConfiguration extends AbstractCassandraConfiguration {
@@ -10,8 +16,8 @@ public class CassandraConfiguration extends AbstractCassandraConfiguration {
     ...
     @Override
     protected SessionBuilderConfigurer getSessionBuilderConfigurer() {
-        StaticCredentialsProvider credentialsProvider =
-                StaticCredentialsProvider.create(AwsBasicCredentials.create(keyspaceAccessKeyId, keyspaceSecretAccessKey));
+        AwsCredentials credentials = AwsBasicCredentials.create(keyspaceAccessKeyId, keyspaceSecretAccessKey)
+        StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(credentials);
         SigV4AuthProvider authProvider = new SigV4AuthProvider(credentialsProvider, keyspaceRegion);
         return (builder) -> builder.withAuthProvider(authProvider);
     }
@@ -26,7 +32,6 @@ import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
-
 ...
 
 @Configuration
