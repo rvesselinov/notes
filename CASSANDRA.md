@@ -1,6 +1,71 @@
 # Cassandra notes
 
-## Using Cassandra driver (CQL sesssion) and Spring Data for asynchronous inserting of entities.
+## Use SigV4AuthProvider for authentication provider to AWS Keyspaces
+
+```java
+@Configuration
+@EnableCassandraRepositories(basePackages = {"..."})
+public class CassandraConfiguration extends AbstractCassandraConfiguration {
+
+    ...
+    @Override
+    protected SessionBuilderConfigurer getSessionBuilderConfigurer() {
+        StaticCredentialsProvider credentialsProvider =
+                StaticCredentialsProvider.create(AwsBasicCredentials.create(keyspaceAccessKeyId, keyspaceSecretAccessKey));
+        SigV4AuthProvider authProvider = new SigV4AuthProvider(credentialsProvider, keyspaceRegion);
+        return (builder) -> builder.withAuthProvider(authProvider);
+    }
+    ....
+```
+
+## Use AWS STS client with control and linked roles for cretion of the SigV4AuthProvider
+
+```java
+...
+import software.amazon.awssdk.services.sts.StsClient;
+import software.amazon.awssdk.services.sts.StsClientBuilder;
+import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
+import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
+
+...
+
+@Configuration
+@EnableCassandraRepositories(basePackages = {"..."})
+public class CassandraConfiguration extends AbstractCassandraConfiguration {
+...
+    private static final String keyspaceControlSessionName = "control-session";
+    private static final String keyspaceLinkedSessionName = "linked-session";
+...
+    @Override
+    protected SessionBuilderConfigurer getSessionBuilderConfigurer() {
+        StsClient controlStsClient = StsClient.builder().region(Region.of(keyspaceRegion)).build();
+        AssumeRoleRequest controlRole = AssumeRoleRequest.builder()
+                .roleArn(keyspaceControlArn)
+                .roleSessionName(keyspaceControlSessionName)
+                .build();
+        StsAssumeRoleCredentialsProvider controlAccount = StsAssumeRoleCredentialsProvider.builder()
+                .stsClient(controlStsClient)
+                .refreshRequest(controlRole).build();
+
+        StsClient linkedStsClient = StsClient.builder()
+                .region(Region.of(keyspaceRegion))
+                .credentialsProvider(controlAccount)
+                .build();
+        AssumeRoleRequest linkedRole = AssumeRoleRequest.builder()
+                .roleArn(keyspaceLinkedArn)
+                .roleSessionName(keyspaceLinkedSessionName)
+                .build();
+        StsAssumeRoleCredentialsProvider linkedAccount = StsAssumeRoleCredentialsProvider.builder()
+                .stsClient(linkedStsClient)
+                .refreshRequest(linkedRole)
+                .build();
+
+        SigV4AuthProvider authProvider = new SigV4AuthProvider(linkedAccount, keyspaceRegion);
+        return (builder) -> builder.withAuthProvider(authProvider);
+    }
+```
+
+## Use Cassandra driver (CQL sesssion) and Spring Data for asynchronous inserting of entities.
 
 > **NOTE:** With Spring Data for Apache Cassandra 2.0, the API supports asynch operations See: [AsyncCassandraOperations](https://github.com/spring-projects/spring-data-cassandra/blob/5923cbebbcc4688372fcf72d6d5464027cc3f0c9/spring-data-cassandra/src/main/java/org/springframework/data/cassandra/core/AsyncCassandraOperations.java) and [AsyncCassandraTemplate](https://github.com/spring-projects/spring-data-cassandra/blob/5923cbebbcc4688372fcf72d6d5464027cc3f0c9/spring-data-cassandra/src/main/java/org/springframework/data/cassandra/core/AsyncCassandraTemplate.java)
 
