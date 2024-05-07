@@ -111,7 +111,7 @@ public class CassandraConfiguration extends AbstractCassandraConfiguration {
         Map<CqlIdentifier, Term> values = new LinkedHashMap<>();
         for (CassandraPersistentProperty property : entity) {
             if (property.isCompositePrimaryKey()) {
-                CassandraPersistentEntity<?> compositePrimaryKey =
+                CassandraPersistentEntity<T> compositePrimaryKey =
                         cassandraOperations.getConverter().getMappingContext().getRequiredPersistentEntity(property);
                 values.putAll(buildTerms(compositePrimaryKey));
 
@@ -126,7 +126,7 @@ public class CassandraConfiguration extends AbstractCassandraConfiguration {
 
     private <T> CompletableFuture<String> insertEntity(
             T entity,
-            CassandraPersistentEntity<?> persistentEntity,
+            CassandraPersistentEntity<T> persistentEntity,
             PreparedStatement preparedStatement) {
 
         Map<CqlIdentifier, Object> sink = new LinkedHashMap<>();
